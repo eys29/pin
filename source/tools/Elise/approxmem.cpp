@@ -10,16 +10,32 @@
 #include <stdio.h>
 #include "pin.H"
 
-FILE* trace;
+// build:
+//  make all TARGET=intel64
+
+// run: 
+//  ../../../pin -t obj-intel64/memtrace.so -- test 
+
+FILE *trace;
 
 // Print a memory read record
-VOID RecordMemRead(VOID* ip, VOID* addr) { fprintf(trace, "%p: R %p\n", ip, addr); }
+VOID RecordMemRead(ADDRINT *addr)
+{
+    ADDRINT value;
+    PIN_SafeCopy(&value, addr, sizeof(ADDRINT));
+    fprintf(trace, "R \t%p \tfrom \t%p\n", &value, addr);
+}
 
 // Print a memory write record
-VOID RecordMemWrite(VOID* ip, VOID* addr) { fprintf(trace, "%p: W %p\n", ip, addr); }
+VOID RecordMemWrite(ADDRINT *addr)
+{
+    ADDRINT value;
+    PIN_SafeCopy(&value, addr, sizeof(ADDRINT));
+    fprintf(trace, "W \t%p \tto \t\t%p\n", &value, addr);
+}
 
 // Is called for every instruction and instruments reads and writes
-VOID Instruction(INS ins, VOID* v)
+VOID Instruction(INS ins, VOID *v)
 {
     // Instruments memory accesses using a predicated call, i.e.
     // the instrumentation is called iff the instruction will actually be executed.
@@ -33,21 +49,20 @@ VOID Instruction(INS ins, VOID* v)
     {
         if (INS_MemoryOperandIsRead(ins, memOp))
         {
-            INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordMemRead, IARG_INST_PTR, IARG_MEMORYOP_EA, memOp,
-                                     IARG_END);
+            INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordMemRead, IARG_MEMORYOP_EA, memOp, IARG_END);
         }
         // Note that in some architectures a single memory operand can be
         // both read and written (for instance incl (%eax) on IA-32)
         // In that case we instrument it once for read and once for write.
         if (INS_MemoryOperandIsWritten(ins, memOp))
         {
-            INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordMemWrite, IARG_INST_PTR, IARG_MEMORYOP_EA, memOp,
-                                     IARG_END);
+            INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordMemWrite, IARG_MEMORYOP_EA, memOp, IARG_END);
         }
     }
 }
 
-VOID Fini(INT32 code, VOID* v)
+// called when app exits
+VOID Fini(INT32 code, VOID *v)
 {
     fprintf(trace, "#eof\n");
     fclose(trace);
@@ -67,9 +82,10 @@ INT32 Usage()
 /* Main                                                                  */
 /* ===================================================================== */
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-    if (PIN_Init(argc, argv)) return Usage();
+    if (PIN_Init(argc, argv))
+        return Usage();
 
     trace = fopen("memtrace.out", "w");
 

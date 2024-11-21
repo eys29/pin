@@ -18,33 +18,86 @@
 
 #include <stdio.h>
 #include "pin.H"
+#include <iostream>
+#include <cmath>
 
 FILE *trace;
+FILE *stats;
+ADDRINT smallest_addr;
+ADDRINT largest_addr;
+int start = 1;
+int num_reads = 0;
+int num_writes = 0;
 
-// from pinatrace
+// from pinatrace /////////////////////////////////////////////
 // Print a memory read record
 VOID memOpRead(VOID *addr, UINT32 size)
 {
     fprintf(trace, "op R %dB from addr %p \n", size, addr);
 }
 
-// from pinatrace
 // Print a memory write record
 VOID memOpWrite(VOID *addr, UINT32 size)
 {
     fprintf(trace, "op W %dB from addr %p \n", size, addr);
 }
 
-// same as memOpRead
-VOID memRead(ADDRINT addr, UINT32 size){
-    char data[size];
-    PIN_SafeCopy(&data, (VOID *) addr, size);
-    fprintf(trace, "\t R %dB from addr %lx: \t %s \n", size, addr, data);
+///////////////////////////////////////////////////////////////
+
+VOID addr_stats(ADDRINT addr)
+{
+    if (start)
+    {
+        largest_addr = addr;
+        smallest_addr = addr;
+        start = 0;
+    }
+    else
+    {
+        if (addr > largest_addr)
+            largest_addr = addr;
+        if (addr < smallest_addr)
+            smallest_addr = addr;
+    }
 }
 
-// same as memOpWrite
-VOID memWrite(ADDRINT addr, UINT32 size){
-    fprintf(trace, "\t W %dB from addr %lx \n", size, addr);
+// helper called by mem_r or mem_w
+VOID mem_r(ADDRINT addr, UINT32 size)
+{
+    char data[size];
+    PIN_SafeCopy(&data, (VOID *)addr, size);
+    fprintf(trace, "R %dB from addr %lx: \t", size, addr);
+    for (int i = 0; i < (int)size; i++)
+        fprintf(trace, "%x", data[i]);
+    fprintf(trace, "\n");
+    addr_stats(addr);
+}
+
+ADDRINT w_addr;
+UINT32 w_size;
+VOID mem_w_info(ADDRINT addr, UINT32 size)
+{
+    num_reads += 1;
+    addr_stats(addr);
+    w_addr = addr;
+    w_size = size;
+}
+
+VOID mem_w_data()
+{
+    char data[w_size];
+    PIN_SafeCopy(&data, (VOID *)w_addr, w_size);
+    fprintf(trace, "W %dB to   addr %lx: \t", w_size, w_addr);
+    for (int i = 0; i < (int)w_size; i++)
+        fprintf(trace, "%x", data[i]);
+    fprintf(trace, "\n");
+}
+
+VOID mem_w_nodata(ADDRINT addr, UINT32 size)
+{
+    num_writes += 1;
+    addr_stats(addr);
+    fprintf(trace, "W %dB to   addr %lx \n", size, addr);
 }
 
 // Is called for every instruction and instruments reads and writes
@@ -62,20 +115,28 @@ VOID Instruction(INS ins, VOID *v)
     {
         if (INS_MemoryOperandIsRead(ins, memOp))
         {
-            // from pinatrace
-            INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)memOpRead, IARG_MEMORYOP_EA, memOp, IARG_MEMORYOP_SIZE, memOp, IARG_END);
-            // my call
-            INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)memRead, IARG_MEMORYREAD_EA, IARG_MEMORYREAD_SIZE, IARG_END);
+            // pinatrace instrument
+            // INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)memOpRead, IARG_MEMORYOP_EA, memOp, IARG_MEMORYOP_SIZE, memOp, IARG_END);
+
+            // my instrument
+            INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)mem_r, IARG_MEMORYREAD_EA, IARG_MEMORYREAD_SIZE, IARG_END);
         }
         // Note that in some architectures a single memory operand can be
         // both read and written (for instance incl (%eax) on IA-32)
         // In that case we instrument it once for read and once for write.
         if (INS_MemoryOperandIsWritten(ins, memOp))
         {
-            // from pinatrace
-            INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)memOpWrite, IARG_MEMORYOP_EA, memOp, IARG_MEMORYOP_SIZE, memOp, IARG_END);
-            // my call
-            INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)memWrite, IARG_MEMORYWRITE_EA, IARG_MEMORYWRITE_SIZE, IARG_END);
+            //  pinatrace instrument
+            // INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)memOpWrite, IARG_MEMORYOP_EA, memOp, IARG_MEMORYOP_SIZE, memOp, IARG_END);
+
+            // my instrument
+            if (INS_IsValidForIpointAfter(ins))
+            {
+                INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)mem_w_info, IARG_MEMORYWRITE_EA, IARG_MEMORYWRITE_SIZE, IARG_END);
+                INS_InsertPredicatedCall(ins, IPOINT_AFTER, (AFUNPTR)mem_w_data, IARG_END);
+            }
+            else
+                INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)mem_w_nodata, IARG_MEMORYWRITE_EA, IARG_MEMORYWRITE_SIZE, IARG_END);
         }
     }
 }
@@ -84,6 +145,13 @@ VOID Fini(INT32 code, VOID *v)
 {
     fprintf(trace, "#eof\n");
     fclose(trace);
+    fprintf(stats, "largest addr: %lx \n", largest_addr);
+    fprintf(stats, "smallest addr: %lx \n", smallest_addr);
+    fprintf(stats, "addr space size: %lf TB \n", (largest_addr - smallest_addr) / pow(2, 40));
+    fprintf(stats, "# reads: %d\n", num_reads);
+    fprintf(stats, "# writes: %d\n", num_writes);
+    fprintf(stats, "total mem instrs: %d\n", num_reads+num_writes);
+    fclose(stats);
 }
 
 /* ===================================================================== */
@@ -106,6 +174,7 @@ int main(int argc, char *argv[])
         return Usage();
 
     trace = fopen("approxtrace.out", "w");
+    stats = fopen("approxstats.out", "w");
 
     INS_AddInstrumentFunction(Instruction, 0);
     PIN_AddFiniFunction(Fini, 0);

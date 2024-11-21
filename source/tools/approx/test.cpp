@@ -1,6 +1,13 @@
 #include <iostream>
 
 int main() {
-    std::printf("hello world, this is elise\n");
+    int image[100];
+    for (int i=0; i < 100; i++){
+        image[i] = i;
+    }
+    int sum = 0;
+    for (int i=0; i < 100; i++){
+        sum += image[i];
+    }
     return 0;
 }

@@ -2,11 +2,13 @@
 // 11/2024
 // Starter code from pinatrace
 
-// build:
-//  make all TARGET=intel64
+/**
+build:
+    make obj-intel64/approxmem.so TARGET=intel64
 
-// run:
-//  ../../../pin -t obj-intel64/memtrace.so -- test
+run:
+    ../../../pin -t obj-intel64/approxmem.so -- test
+*/
 /*
  * Copyright (C) 2004-2021 Intel Corporation.
  * SPDX-License-Identifier: MIT
@@ -28,6 +30,7 @@ ADDRINT largest_addr;
 int start = 1;
 int num_reads = 0;
 int num_writes = 0;
+int is_tracing = 0;
 
 // from pinatrace /////////////////////////////////////////////
 // Print a memory read record
@@ -44,6 +47,7 @@ VOID memOpWrite(VOID *addr, UINT32 size)
 
 ///////////////////////////////////////////////////////////////
 
+// helper function to collect statistics about addr range
 VOID addr_stats(ADDRINT addr)
 {
     if (start)
@@ -61,9 +65,10 @@ VOID addr_stats(ADDRINT addr)
     }
 }
 
-// helper called by mem_r or mem_w
 VOID mem_r(ADDRINT addr, UINT32 size)
 {
+    if (!is_tracing)
+        return;
     char data[size];
     PIN_SafeCopy(&data, (VOID *)addr, size);
     fprintf(trace, "R %dB from addr %lx: \t", size, addr);
@@ -77,6 +82,8 @@ ADDRINT w_addr;
 UINT32 w_size;
 VOID mem_w_info(ADDRINT addr, UINT32 size)
 {
+    if (!is_tracing)
+        return;
     num_reads += 1;
     addr_stats(addr);
     w_addr = addr;
@@ -85,6 +92,8 @@ VOID mem_w_info(ADDRINT addr, UINT32 size)
 
 VOID mem_w_data()
 {
+    if (!is_tracing)
+        return;
     char data[w_size];
     PIN_SafeCopy(&data, (VOID *)w_addr, w_size);
     fprintf(trace, "W %dB to   addr %lx: \t", w_size, w_addr);
@@ -95,11 +104,19 @@ VOID mem_w_data()
 
 VOID mem_w_nodata(ADDRINT addr, UINT32 size)
 {
+    if (!is_tracing)
+        return;
     num_writes += 1;
     addr_stats(addr);
     fprintf(trace, "W %dB to   addr %lx \n", size, addr);
 }
 
+// set is_tracing boolean to !is_tracing
+VOID set_tracing()
+{
+    is_tracing = (is_tracing + 1) % 2;
+    fprintf(stats, "is_tracing=%d\n", is_tracing);
+}
 // Is called for every instruction and instruments reads and writes
 VOID Instruction(INS ins, VOID *v)
 {
@@ -108,6 +125,16 @@ VOID Instruction(INS ins, VOID *v)
     //
     // On the IA-32 and Intel(R) 64 architectures conditional moves and REP
     // prefixed instructions appear as predicated instructions in Pin.
+    
+    UINT32 opcode = INS_Opcode(ins);
+    // Handle magic instructions
+    if (opcode == XED_ICLASS_XCHG && INS_OperandReg(ins, 0) == REG_ECX)// && INS_OperandReg(ins, 1) == REG_ECX)
+    {
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)set_tracing, IARG_END);
+        return;
+
+    }
+    
     UINT32 memOperands = INS_MemoryOperandCount(ins);
 
     // Iterate over each memory operand of the instruction.
@@ -150,7 +177,7 @@ VOID Fini(INT32 code, VOID *v)
     fprintf(stats, "addr space size: %lf TB \n", (largest_addr - smallest_addr) / pow(2, 40));
     fprintf(stats, "# reads: %d\n", num_reads);
     fprintf(stats, "# writes: %d\n", num_writes);
-    fprintf(stats, "total mem instrs: %d\n", num_reads+num_writes);
+    fprintf(stats, "total mem instrs: %d\n", num_reads + num_writes);
     fclose(stats);
 }
 

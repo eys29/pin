@@ -35,22 +35,7 @@ int num_reads = 0;
 int num_writes = 0;
 int is_tracing = 0;
 
-// from pinatrace /////////////////////////////////////////////
-// Print a memory read record
-VOID memOpRead(VOID *addr, UINT32 size)
-{
-    fprintf(trace, "op R %dB from addr %p \n", size, addr);
-}
-
-// Print a memory write record
-VOID memOpWrite(VOID *addr, UINT32 size)
-{
-    fprintf(trace, "op W %dB from addr %p \n", size, addr);
-}
-
-///////////////////////////////////////////////////////////////
-
-// helper function to collect statistics about addr range
+// helper function that collects statistics about addr range of mem instructions
 VOID addr_stats(ADDRINT addr)
 {
     if (start)
@@ -68,6 +53,7 @@ VOID addr_stats(ADDRINT addr)
     }
 }
 
+// prints addr and data of mem read
 VOID mem_r(ADDRINT addr, UINT32 size)
 {
     if (!is_tracing)
@@ -77,13 +63,16 @@ VOID mem_r(ADDRINT addr, UINT32 size)
     PIN_SafeCopy(&data, (VOID *)addr, size);
     fprintf(trace, "R %dB from addr %lx: \t", size, addr);
     for (int i = 0; i < (int)size; i++)
-        fprintf(trace, "%x", data[i]);
+        fprintf(trace, "%02hhx ", data[size-1-i]);
     fprintf(trace, "\n");
     addr_stats(addr);
 }
 
 ADDRINT w_addr;
 UINT32 w_size;
+
+//stores write addr and data size for mem_w_data to print later 
+//(addr and data size is not available for after instruction instrumentation)
 VOID mem_w_info(ADDRINT addr, UINT32 size)
 {
     if (!is_tracing)
@@ -94,6 +83,7 @@ VOID mem_w_info(ADDRINT addr, UINT32 size)
     w_size = size;
 }
 
+//prints addr and data of mem write
 VOID mem_w_data()
 {
     if (!is_tracing)
@@ -102,10 +92,11 @@ VOID mem_w_data()
     PIN_SafeCopy(&data, (VOID *)w_addr, w_size);
     fprintf(trace, "W %dB to   addr %lx: \t", w_size, w_addr);
     for (int i = 0; i < (int)w_size; i++)
-        fprintf(trace, "%x", data[i]);
+        fprintf(trace, "%02hhx ", data[w_size-1-i]);
     fprintf(trace, "\n");
 }
 
+// if data is not available, just print the address and size
 VOID mem_w_nodata(ADDRINT addr, UINT32 size)
 {
     if (!is_tracing)
@@ -142,10 +133,12 @@ VOID Instruction(INS ins, VOID *v)
     if (INS_Opcode(ins) == XED_ICLASS_XCHG && INS_OperandReg(ins, 0) == REG_EAX && INS_OperandReg(ins, 1)){
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)encounter_magic_instr, IARG_END);
     }
-    if (INS_OperandCount(ins) == 2)
-    {
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)print_instr, IARG_UINT32, INS_Opcode(ins), IARG_UINT32, REG(INS_OperandReg(ins, 0)), IARG_UINT32, REG(INS_OperandReg(ins, 1)), IARG_END); // INS_OperandReg(ins, 2),
-    }
+
+    // debug: prints assembly instrs
+    // if (INS_OperandCount(ins) == 2)
+    // {
+    //     INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)print_instr, IARG_UINT32, INS_Opcode(ins), IARG_UINT32, REG(INS_OperandReg(ins, 0)), IARG_UINT32, REG(INS_OperandReg(ins, 1)), IARG_END); // INS_OperandReg(ins, 2),
+    // }
 
     UINT32 memOperands = INS_MemoryOperandCount(ins);
 

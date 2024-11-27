@@ -7,7 +7,7 @@ build:
     make obj-intel64/approxmem.so TARGET=intel64
 
 run:
-    ../../../pin -t obj-intel64/approxmem.so -- test
+    ../../../pin -t obj-intel64/approxmem.so -- ./test1
 */
 /*
  * Copyright (C) 2004-2021 Intel Corporation.
@@ -22,9 +22,12 @@ run:
 #include "pin.H"
 #include <iostream>
 #include <cmath>
+#include <cstring>
+#include <string>
 
 FILE *trace;
 FILE *stats;
+FILE *instrdump;
 ADDRINT smallest_addr;
 ADDRINT largest_addr;
 int start = 1;
@@ -69,6 +72,7 @@ VOID mem_r(ADDRINT addr, UINT32 size)
 {
     if (!is_tracing)
         return;
+    num_reads += 1;
     char data[size];
     PIN_SafeCopy(&data, (VOID *)addr, size);
     fprintf(trace, "R %dB from addr %lx: \t", size, addr);
@@ -84,7 +88,7 @@ VOID mem_w_info(ADDRINT addr, UINT32 size)
 {
     if (!is_tracing)
         return;
-    num_reads += 1;
+    num_writes += 1;
     addr_stats(addr);
     w_addr = addr;
     w_size = size;
@@ -111,12 +115,19 @@ VOID mem_w_nodata(ADDRINT addr, UINT32 size)
     fprintf(trace, "W %dB to   addr %lx \n", size, addr);
 }
 
+// debug function that prints assembly instructions
+VOID print_instr(UINT32 opcode, REG reg0, REG reg1) //, UINT32 reg2)
+{
+    fprintf(instrdump, "%s %s, %s\n", OPCODE_StringShort(opcode).c_str(), REG_StringShort(reg0).c_str(), REG_StringShort(reg1).c_str());
+}
+
 // set is_tracing boolean to !is_tracing
-VOID set_tracing()
+VOID encounter_magic_instr()
 {
     is_tracing = (is_tracing + 1) % 2;
     fprintf(stats, "is_tracing=%d\n", is_tracing);
 }
+
 // Is called for every instruction and instruments reads and writes
 VOID Instruction(INS ins, VOID *v)
 {
@@ -125,16 +136,17 @@ VOID Instruction(INS ins, VOID *v)
     //
     // On the IA-32 and Intel(R) 64 architectures conditional moves and REP
     // prefixed instructions appear as predicated instructions in Pin.
-    
-    UINT32 opcode = INS_Opcode(ins);
-    // Handle magic instructions
-    if (opcode == XED_ICLASS_XCHG && INS_OperandReg(ins, 0) == REG_ECX)// && INS_OperandReg(ins, 1) == REG_ECX)
-    {
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)set_tracing, IARG_END);
-        return;
 
+    // Handle magic instructions
+
+    if (INS_Opcode(ins) == XED_ICLASS_XCHG && INS_OperandReg(ins, 0) == REG_EAX && INS_OperandReg(ins, 1)){
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)encounter_magic_instr, IARG_END);
     }
-    
+    if (INS_OperandCount(ins) == 2)
+    {
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)print_instr, IARG_UINT32, INS_Opcode(ins), IARG_UINT32, REG(INS_OperandReg(ins, 0)), IARG_UINT32, REG(INS_OperandReg(ins, 1)), IARG_END); // INS_OperandReg(ins, 2),
+    }
+
     UINT32 memOperands = INS_MemoryOperandCount(ins);
 
     // Iterate over each memory operand of the instruction.
@@ -174,11 +186,13 @@ VOID Fini(INT32 code, VOID *v)
     fclose(trace);
     fprintf(stats, "largest addr: %lx \n", largest_addr);
     fprintf(stats, "smallest addr: %lx \n", smallest_addr);
-    fprintf(stats, "addr space size: %lf TB \n", (largest_addr - smallest_addr) / pow(2, 40));
+    fprintf(stats, "addr space size: %ld B \n", (largest_addr - smallest_addr));
     fprintf(stats, "# reads: %d\n", num_reads);
     fprintf(stats, "# writes: %d\n", num_writes);
     fprintf(stats, "total mem instrs: %d\n", num_reads + num_writes);
+
     fclose(stats);
+    fclose(instrdump);
 }
 
 /* ===================================================================== */
@@ -202,6 +216,7 @@ int main(int argc, char *argv[])
 
     trace = fopen("approxtrace.out", "w");
     stats = fopen("approxstats.out", "w");
+    instrdump = fopen("approxinstrs.out", "w");
 
     INS_AddInstrumentFunction(Instruction, 0);
     PIN_AddFiniFunction(Fini, 0);

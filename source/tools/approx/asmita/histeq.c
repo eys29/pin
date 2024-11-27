@@ -119,7 +119,7 @@ hist (algPixel_t *streamA, int *h, int nRows, int nCols, int nBpp)
   }
 
   memset((void *)h, 0, nBins * sizeof(int));
-  MAGIC_ECX_INSTRUCTION;
+  MAGIC_INSTR;
   for (i = 0; i < nPxls; i++)
   {
     register int temp = (int)streamA[i];
@@ -135,7 +135,7 @@ hist (algPixel_t *streamA, int *h, int nRows, int nCols, int nBpp)
       MAGIC_EAX_INSTRUCTION;
     }
   }
-  MAGIC_ECX_INSTRUCTION;
+  MAGIC_INSTR;
   return 0;
 }
 

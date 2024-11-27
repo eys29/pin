@@ -1,11 +1,10 @@
 #include <iostream>
 
-#define MAGIC_EAX_INSTRUCTION __asm__ __volatile__("xchg %eax,%eax;");
-#define MAGIC_ECX_INSTRUCTION __asm__ __volatile__("xchg %ecx,%ecx;");
+#define MAGIC_INSTR __asm__("xchg %eax,%eax;");
 
 int main()
 {
-    MAGIC_ECX_INSTRUCTION;
+    MAGIC_INSTR;
     int image[100];
     for (int i = 0; i < 100; i++)
     {
@@ -16,7 +15,6 @@ int main()
     {
         sum += image[i];
     }
-    MAGIC_ECX_INSTRUCTION;
-
+    MAGIC_INSTR;
     return 0;
 }

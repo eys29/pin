@@ -1,74 +1,8 @@
 is_tracing=1
 is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-is_tracing=1
-is_tracing=0
-largest addr: 7ffca6bb8538 
-smallest addr: 55a070bbc310 
-addr space size: 42.360199 TB 
-# reads: 37184
-# writes: 9765
-total mem instrs: 46949
+largest addr: 7ffc4215420c 
+smallest addr: 7ffc42154074 
+addr space size: 408 B 
+# reads: 902
+# writes: 403
+total mem instrs: 1305

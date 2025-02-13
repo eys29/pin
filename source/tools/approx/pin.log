@@ -1,0 +1,11 @@
+Pin: pin-3.31-98869-fa6f126a8
+Copyright 2002-2024 Intel Corporation.
+ [tid:155481] Pausing for 20 seconds to attach to process with pid 155481
+To load the debug info to gdb use:
+*****************************************************************
+set sysroot /not/existing/dir
+file
+add-symbol-file /home/elise/Desktop/pin/source/tools/approx/obj-intel64/bitflip.so 0x7fb1191593a0 -s .data 0x7fb1192d69c0 -s .bss 0x7fb1192d73c0
+*****************************************************************
+
+ [tid:155481] Resuming

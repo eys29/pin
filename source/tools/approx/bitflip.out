@@ -1,0 +1,3 @@
+instr 21 - bit 12
+	BEFORE: 21 R 4 140730690510224 [ 8 0 0 0 ]
+block 1 offset 4	AFTER: 21 R 4 140730690510224 [ 8 16 0 0 ]

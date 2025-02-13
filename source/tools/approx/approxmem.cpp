@@ -7,7 +7,7 @@ build:
     make obj-intel64/approxmem.so TARGET=intel64
 
 run:
-    ../../../pin -t obj-intel64/approxmem.so -- ./test1
+    ../../../pin -t obj-intel64/approxmem.so -- ./memtest
 */
 /*
  * Copyright (C) 2004-2021 Intel Corporation.

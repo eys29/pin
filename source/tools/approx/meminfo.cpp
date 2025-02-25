@@ -25,12 +25,13 @@ run:
 #include <cstring>
 #include <string>
 
-FILE *trace;
+FILE *out;
 FILE *assembly;
-int num_reads = 0;
-int num_writes = 0;
+FILE *info;
 int mem_instr_counter = 0;
 int is_tracing = 0;
+
+int last_instr = 500;
 
 
 
@@ -40,18 +41,29 @@ VOID print_instr(UINT32 opcode, REG reg0, REG reg1) //, UINT32 reg2)
     fprintf(assembly, "%d %s %s, %s\n", mem_instr_counter, OPCODE_StringShort(opcode).c_str(), REG_StringShort(reg0).c_str(), REG_StringShort(reg1).c_str());
 }
 
-// prints addr and data of mem read
-VOID mem_r(ADDRINT addr, UINT32 size)
+//helper function for mem_r and mem_w
+VOID mem_instr(ADDRINT addr, UINT32 size)
 {
-    if (!is_tracing)
+    if (!is_tracing) 
         return;
-    num_reads += 1;
+    if (mem_instr_counter >= last_instr)
+    {
+        mem_instr_counter += 1;
+        return;
+    }
     uint8_t data[size];
     PIN_SafeCopy(&data, (VOID *)addr, size);
     // instr_counter | size (bytes) | address 
-    printf("%d %d %ld\n", mem_instr_counter, size, addr);
+    fprintf(out, "%d %d %ld\n", mem_instr_counter, size, addr);
     
     mem_instr_counter += 1;
+}
+
+
+// prints addr and data of mem read
+VOID mem_r(ADDRINT r_addr, UINT32 r_size)
+{
+    mem_instr(r_addr, r_size);
 }
 
 ADDRINT w_addr;
@@ -61,9 +73,8 @@ UINT32 w_size;
 //(addr and data size is not available for after instruction instrumentation)
 VOID mem_w_info(ADDRINT addr, UINT32 size)
 {
-    if (!is_tracing)
+    if (!is_tracing || mem_instr_counter >= last_instr)
         return;
-    num_writes += 1;
     w_addr = addr;
     w_size = size;
 }
@@ -71,14 +82,7 @@ VOID mem_w_info(ADDRINT addr, UINT32 size)
 // prints addr and data of mem write
 VOID mem_w_data()
 {
-    if (!is_tracing)
-        return;
-    uint8_t data[w_size];
-    PIN_SafeCopy(&data, (VOID *)w_addr, w_size);
-    // instr_counter | size (bytes) | address 
-    printf("%d %d %ld\n", mem_instr_counter, w_size, w_addr);
-    mem_instr_counter += 1;
-
+    mem_instr(w_addr, w_size);
 }
 
 // set is_tracing boolean to !is_tracing
@@ -103,8 +107,6 @@ VOID Instruction(INS ins, VOID *v)
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)encounter_magic_instr, IARG_END);
     }
 
-   
-
     UINT32 memOperands = INS_MemoryOperandCount(ins);
 
     // Iterate over each memory operand of the instruction.
@@ -113,31 +115,27 @@ VOID Instruction(INS ins, VOID *v)
         if (INS_MemoryOperandIsRead(ins, memOp))
         {
             INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)mem_r, IARG_MEMORYREAD_EA, IARG_MEMORYREAD_SIZE, IARG_END);
-            INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)print_instr, IARG_UINT32, INS_Opcode(ins), IARG_UINT32, REG(INS_OperandReg(ins, 0)), IARG_UINT32, REG(INS_OperandReg(ins, 1)), IARG_END); // INS_OperandReg(ins, 2),
         }
         // Note that in some architectures a single memory operand can be
         // both read and written (for instance incl (%eax) on IA-32)
         // In that case we instrument it once for read and once for write.
         if (INS_MemoryOperandIsWritten(ins, memOp))
         {
-            // my instrument
             if (INS_IsValidForIpointAfter(ins))
             {
                 INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)mem_w_info, IARG_MEMORYWRITE_EA, IARG_MEMORYWRITE_SIZE, IARG_END);
                 INS_InsertPredicatedCall(ins, IPOINT_AFTER, (AFUNPTR)mem_w_data, IARG_END);
-                INS_InsertPredicatedCall(ins, IPOINT_AFTER, (AFUNPTR)print_instr, IARG_UINT32, INS_Opcode(ins), IARG_UINT32, REG(INS_OperandReg(ins, 0)), IARG_UINT32, REG(INS_OperandReg(ins, 1)), IARG_END); // INS_OperandReg(ins, 2),
             }
-            // else
-            //     INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)mem_w_nodata, IARG_MEMORYWRITE_EA, IARG_MEMORYWRITE_SIZE, IARG_END);
         }
     }
 }
 
 VOID Fini(INT32 code, VOID *v)
 {
-   
-    fclose(trace);
+    fprintf(info, "%d", mem_instr_counter);
+    fclose(out);
     fclose(assembly);
+    fclose(info);
 
 }
 
@@ -147,7 +145,7 @@ VOID Fini(INT32 code, VOID *v)
 
 INT32 Usage()
 {
-    PIN_ERROR("This Pintool prints a trace of memory addresses\n" + KNOB_BASE::StringKnobSummary() + "\n");
+    PIN_ERROR("This Pintool prints a read and write instruction information to meminfo.out\n" + KNOB_BASE::StringKnobSummary() + "\n");
     return -1;
 }
 
@@ -160,8 +158,9 @@ int main(int argc, char *argv[])
     if (PIN_Init(argc, argv))
         return Usage();
 
-    trace = fopen("mem_info.out", "w");
-    assembly = fopen("mem_assembly.out", "w");
+    out = fopen("meminfo.out", "w");
+    assembly = fopen("meminfo.s", "w");
+    info = fopen("meminfo.info", "w");
     
 
     INS_AddInstrumentFunction(Instruction, 0);

@@ -28,31 +28,26 @@ debug:
 #include <cstring>
 #include <string>
 
-FILE *trace;
-int num_reads = 0;
-int num_writes = 0;
+FILE *debug;
+
 int instr_counter = 0;
 int is_tracing = 0;
 
 int instr_num = -1;
 int bit_loc = -1;
 
-// prints addr and data of mem read
-VOID mem_r(ADDRINT addr, UINT32 size)
+
+VOID mem_instr(ADDRINT addr, UINT32 size, char rw)
 {
-    if (!is_tracing)
-        return;
-    num_reads += 1;
     if (instr_counter == instr_num){
         uint8_t data[size];
         PIN_SafeCopy(&data, (VOID *)addr, size);
-        fprintf(trace, "\tBEFORE: %d R %d %lu [ ", instr_counter, size, (unsigned long)addr);
+        fprintf(debug, "\tBEFORE: #%d %c %d %lu [ ", instr_counter, rw, size, (unsigned long)addr);
         for (int i = 0; i < (int)size; i++)
-            fprintf(trace, "%u ", data[i]);
-        fprintf(trace, "]\n");
+            fprintf(debug, "%u ", data[i]);
+        fprintf(debug, "]\n");
         UINT32 block = bit_loc / 8; // 8 bits
         int offset = bit_loc % 8;
-        fprintf(trace, "block %d offset %d", block, offset);
         if (block < size){
             
             uint8_t bitmask = 1 << offset;
@@ -63,13 +58,23 @@ VOID mem_r(ADDRINT addr, UINT32 size)
             PIN_SafeCopy(&check_write, (VOID *)addr, size);
             
 
-            fprintf(trace, "\tAFTER: %d R %d %lu [ ", instr_counter, size, (unsigned long)addr);
+            fprintf(debug, "\tAFTER: #%d %c %d %lu [ ", instr_counter, rw, size, (unsigned long)addr);
             for (int i = 0; i < (int)size; i++)
-                fprintf(trace, "%u ", check_write[i]);
-            fprintf(trace, "]\n");
+                fprintf(debug, "%u ", check_write[i]);
+            fprintf(debug, "]\n");
         }
     }
     instr_counter += 1;
+
+}
+
+// prints addr and data of mem read
+VOID mem_r(ADDRINT r_addr, UINT32 r_size)
+{
+    if (!is_tracing)
+        return;
+    mem_instr(r_addr, r_size, 'R');
+    
 }
 
 ADDRINT w_addr;
@@ -81,7 +86,6 @@ VOID mem_w_info(ADDRINT addr, UINT32 size)
 {
     if (!is_tracing)
         return;
-    num_writes += 1;
     w_addr = addr;
     w_size = size;
 }
@@ -91,47 +95,10 @@ VOID mem_w_data()
 {
     if (!is_tracing)
         return;
-    if (instr_counter == instr_num){
-        uint8_t data[w_size];
-        PIN_SafeCopy(&data, (VOID *)w_addr, w_size);
-        fprintf(trace, "\tBEFORE: %d W %d %lu [ ", instr_counter, w_size, (unsigned long)w_addr);
-        for (int i = 0; i < (int)w_size; i++)
-            fprintf(trace, "%u ", data[i]);
-        fprintf(trace, "]\n");
-        UINT32 block = bit_loc / 8; // 8 bits
-        if (block < w_size){
-            int offset = bit_loc % 8;
-            fprintf(trace, "\tblock %d offset %d\n", block, offset);
-
-            uint8_t bitmask = 1 << offset;
-            data[block] = data[block] ^ bitmask;
-            PIN_SafeCopy((VOID *)w_addr, &data, w_size);
-            uint8_t check_write[w_size];
-            // for debugging
-            PIN_SafeCopy(&check_write, (VOID *)w_addr, w_size);
-            
-
-            fprintf(trace, "\tAFTER: %d W %d %lu [ ", instr_counter, w_size, (unsigned long)w_addr);
-            for (int i = 0; i < (int)w_size; i++)
-                fprintf(trace, "%u ", check_write[i]);
-            fprintf(trace, "]\n");
-        }
-    }
-    instr_counter += 1;
+    mem_instr(w_addr, w_size, 'W');
 
 }
 
-// if data is not available, just gather statistics
-VOID mem_w_nodata(ADDRINT addr, UINT32 size)
-{
-    
-    if (!is_tracing)
-        return;
-    num_writes += 1;
-
-    
-    instr_counter += 1;
-}
 
 // set is_tracing boolean to !is_tracing
 VOID encounter_magic_instr()
@@ -188,15 +155,13 @@ VOID Instruction(INS ins, VOID *v)
                 INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)mem_w_info, IARG_MEMORYWRITE_EA, IARG_MEMORYWRITE_SIZE, IARG_END);
                 INS_InsertPredicatedCall(ins, IPOINT_AFTER, (AFUNPTR)mem_w_data, IARG_END);
             }
-            else
-                INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)mem_w_nodata, IARG_MEMORYWRITE_EA, IARG_MEMORYWRITE_SIZE, IARG_END);
         }
     }
 }
 
 VOID Fini(INT32 code, VOID *v)
 {
-    fclose(trace);
+    fclose(debug);
 }
 
 /* ===================================================================== */
@@ -205,7 +170,7 @@ VOID Fini(INT32 code, VOID *v)
 
 INT32 Usage()
 {
-    PIN_ERROR("This Pintool prints a trace of memory addresses\n" + KNOB_BASE::StringKnobSummary() + "\n");
+    PIN_ERROR("This Pintool flips specified bit of specificed read/write instruction\n" + KNOB_BASE::StringKnobSummary() + "\n");
     return -1;
 }
 
@@ -223,8 +188,8 @@ int main(int argc, char *argv[])
         bit_loc = atoi(argv[8]);
     }
 
-    trace = fopen("bitflip.out", "w");
-    fprintf(trace, "instr %d - bit %d\n", instr_num, bit_loc);
+    debug = fopen("bitflip.debug", "w");
+    fprintf(debug, "instr %d - bit %d\n", instr_num, bit_loc);
 
     INS_AddInstrumentFunction(Instruction, 0);
     PIN_AddFiniFunction(Fini, 0);

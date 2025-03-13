@@ -31,7 +31,7 @@ FILE *info;
 int mem_instr_counter = 0;
 int is_tracing = 0;
 
-int last_instr = 500;
+int last_instr = 100;
 
 
 
@@ -119,14 +119,14 @@ VOID Instruction(INS ins, VOID *v)
         // Note that in some architectures a single memory operand can be
         // both read and written (for instance incl (%eax) on IA-32)
         // In that case we instrument it once for read and once for write.
-        if (INS_MemoryOperandIsWritten(ins, memOp))
-        {
-            if (INS_IsValidForIpointAfter(ins))
-            {
-                INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)mem_w_info, IARG_MEMORYWRITE_EA, IARG_MEMORYWRITE_SIZE, IARG_END);
-                INS_InsertPredicatedCall(ins, IPOINT_AFTER, (AFUNPTR)mem_w_data, IARG_END);
-            }
-        }
+        // if (INS_MemoryOperandIsWritten(ins, memOp))
+        // {
+        //     if (INS_IsValidForIpointAfter(ins))
+        //     {
+        //         INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)mem_w_info, IARG_MEMORYWRITE_EA, IARG_MEMORYWRITE_SIZE, IARG_END);
+        //         INS_InsertPredicatedCall(ins, IPOINT_AFTER, (AFUNPTR)mem_w_data, IARG_END);
+        //     }
+        // }
     }
 }
 

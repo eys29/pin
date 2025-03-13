@@ -3,20 +3,27 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import sys
+
+
+heatmap_in = sys.argv[1]
+heatmap_image = sys.argv[2]
+heatmap_title = sys.argv[3]
 
 
 # Read data from file
-with open("heatmap_multi.out", "r") as file:
+with open(heatmap_in, "r") as file:
     raw_data = file.read()
 
 data = [line.split() for line in raw_data.split("\n") if line]
 
 # Convert values to float, replacing inf and -inf with large positive and negative numbers
-LARGE_POSITIVE = 1e6
-LARGE_NEGATIVE = -1e6
+LARGE_POSITIVE = 1e3
+LARGE_NEGATIVE = -1e3
 
 data_dict = {}
 max_len = max(len(row) for row in data) - 1  # Exclude address column
+
 
 for row in data:
     address = row[0]
@@ -39,14 +46,14 @@ values = np.array([data_dict[address] for address in addresses])
 df = pd.DataFrame(values, index=addresses)
 
 # Plot heatmap
-colors = ["#bf0a30", "#a6bae2", "#002868"]  # red, purple, blue
+colors = ["#FF0000", "#a6bae2", "#002868"]  # red, purple, blue
 cmap = mcolors.LinearSegmentedColormap.from_list("custom_cmap", colors, N=256)
 plt.figure(figsize=(32, 32))
 sns.heatmap(df, cmap=cmap, linewidths=0.5, linecolor='black', xticklabels=10, cbar_kws={"label": "SNR"})  # Reversed colormap
 plt.xlabel("Bit Location")
 plt.ylabel("Memory Address")
-plt.title("Bit Flip Location SNR Across Memory Addresses")
+plt.title(heatmap_title)
 plt.subplots_adjust(left=0.15)  # Increase this value if needed
 
-plt.savefig("heatmap.png")
+plt.savefig(heatmap_image)
 plt.show()

@@ -4,13 +4,11 @@
 
 /**
 build:
-make obj-intel64/bitflip.so TARGET=intel64 DEBUG=1
+make obj-intel64/bitflip.so TARGET=intel64 
 
 run:
-../../../pin -t obj-intel64/bitflip.so -- ./memtest 5 4
+../../../pin -t obj-intel64/bitflip.so -- ./memtest 5 4 1
 
-debug:
-../../../pin -pause-tool 20 -t obj-intel64/bitflip.so -- ./memtest 0 31
 */
 /*
  * Copyright (C) 2004-2021 Intel Corporation.
@@ -35,6 +33,8 @@ int is_tracing = 0;
 
 int instr_num = -1;
 int bit_loc = -1;
+int rand_setting = 1;
+
 
 
 VOID mem_instr(ADDRINT addr, UINT32 size, char rw)
@@ -46,23 +46,38 @@ VOID mem_instr(ADDRINT addr, UINT32 size, char rw)
         for (int i = 0; i < (int)size; i++)
             fprintf(debug, "%u ", data[i]);
         fprintf(debug, "]\n");
-        UINT32 block = bit_loc / 8; // 8 bits
-        int offset = bit_loc % 8;
-        if (block < size){
-            
-            uint8_t bitmask = 1 << offset;
-            data[block] = data[block] ^ bitmask;
-            PIN_SafeCopy((VOID *)addr, &data, size);
-            //for debugging
-            uint8_t check_write[size];
-            PIN_SafeCopy(&check_write, (VOID *)addr, size);
-            
-
-            fprintf(debug, "\tAFTER: #%d %c %d %lu [ ", instr_counter, rw, size, (unsigned long)addr);
-            for (int i = 0; i < (int)size; i++)
-                fprintf(debug, "%u ", check_write[i]);
-            fprintf(debug, "]\n");
+        UINT32 block;
+        int offset;
+        if (rand_setting == 0){
+            block = bit_loc / 8; // 8 bits
+            offset = bit_loc % 8;
+            if (block < size){
+                
+                uint8_t bitmask = 1 << offset;
+                data[block] = data[block] ^ bitmask;
+                
+            }
+        } if (rand_setting == 1){
+            srand(time(NULL));
+            for (int i = 0; i < bit_loc; i++){
+                int random_loc = rand() % (8);
+                block = random_loc / 8; // 8 bits
+                offset = random_loc % 8;
+                uint8_t bitmask = 1 << offset;
+                data[block] = data[block] ^ bitmask;
+            }
         }
+        PIN_SafeCopy((VOID *)addr, &data, size);
+        //for debugging
+        uint8_t check_write[size];
+        PIN_SafeCopy(&check_write, (VOID *)addr, size);
+        
+
+        fprintf(debug, "\tAFTER: #%d %c %d %lu [ ", instr_counter, rw, size, (unsigned long)addr);
+        for (int i = 0; i < (int)size; i++)
+            fprintf(debug, "%u ", check_write[i]);
+        fprintf(debug, "]\n");
+        
     }
     instr_counter += 1;
 
@@ -117,7 +132,10 @@ VOID Instruction(INS ins, VOID *v)
 
     // Handle magic instructions
 
-    if (INS_Opcode(ins) == XED_ICLASS_XCHG && INS_OperandReg(ins, 0) == REG_EAX && INS_OperandReg(ins, 1))
+    if (INS_Opcode(ins) == XED_ICLASS_XCHG && INS_OperandReg(ins, 0) == REG_EAX && INS_OperandReg(ins, 1) == REG_EAX)
+    {
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)encounter_magic_instr, IARG_END);
+    } else if (INS_Opcode(ins) == XED_ICLASS_XCHG && INS_OperandReg(ins, 0) == REG_ECX && INS_OperandReg(ins, 1) == REG_ECX)
     {
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)encounter_magic_instr, IARG_END);
     }
@@ -144,18 +162,18 @@ VOID Instruction(INS ins, VOID *v)
         // Note that in some architectures a single memory operand can be
         // both read and written (for instance incl (%eax) on IA-32)
         // In that case we instrument it once for read and once for write.
-        if (INS_MemoryOperandIsWritten(ins, memOp))
-        {
-            //  pinatrace instrument
-            // INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)memOpWrite, IARG_MEMORYOP_EA, memOp, IARG_MEMORYOP_SIZE, memOp, IARG_END);
+        // if (INS_MemoryOperandIsWritten(ins, memOp))
+        // {
+        //     //  pinatrace instrument
+        //     // INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)memOpWrite, IARG_MEMORYOP_EA, memOp, IARG_MEMORYOP_SIZE, memOp, IARG_END);
 
-            // my instrument
-            if (INS_IsValidForIpointAfter(ins))
-            {
-                INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)mem_w_info, IARG_MEMORYWRITE_EA, IARG_MEMORYWRITE_SIZE, IARG_END);
-                INS_InsertPredicatedCall(ins, IPOINT_AFTER, (AFUNPTR)mem_w_data, IARG_END);
-            }
-        }
+        //     // my instrument
+        //     if (INS_IsValidForIpointAfter(ins))
+        //     {
+        //         INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)mem_w_info, IARG_MEMORYWRITE_EA, IARG_MEMORYWRITE_SIZE, IARG_END);
+        //         INS_InsertPredicatedCall(ins, IPOINT_AFTER, (AFUNPTR)mem_w_data, IARG_END);
+        //     }
+        // }
     }
 }
 
@@ -170,7 +188,7 @@ VOID Fini(INT32 code, VOID *v)
 
 INT32 Usage()
 {
-    PIN_ERROR("This Pintool flips specified bit of specificed read/write instruction\n" + KNOB_BASE::StringKnobSummary() + "\n");
+    PIN_ERROR("This Pintool flips specified bit of specificed read instruction\n" + KNOB_BASE::StringKnobSummary() + "\n");
     return -1;
 }
 
@@ -186,6 +204,8 @@ int main(int argc, char *argv[])
     if (argc == 9){
         instr_num = atoi(argv[7]);
         bit_loc = atoi(argv[8]);
+    } else {
+        return Usage();
     }
 
     debug = fopen("bitflip.debug", "w");

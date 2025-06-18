@@ -48,8 +48,13 @@ rmse = 0.0
 rmse_count = 0
 
 for i in xrange(0, len(precise_vals)):
-   for j in xrange(0, len(precise_vals[i])):
-      diff = abs(precise_vals[i][j] - approx_vals[i][j])
+   for j in xrange(0, len(precise_vals[i]), 3):
+      precise_rgb = precise_vals[i][j] + precise_vals[i][j+1] + precise_vals[i][j+2]
+      approx_rgb = approx_vals[i][j] + approx_vals[i][j+1] + approx_vals[i][j+2]
+      # if (i == 0 and j == 0):
+      #    print str(precise_rgb)
+      #    print str(approx_rgb)
+      diff = abs((precise_rgb / 3.0) - (approx_rgb / 3.0))
 
       avg_diff += diff
       if diff > max_diff:
@@ -63,7 +68,7 @@ for i in xrange(0, len(precise_vals)):
       if diff > (255.0 * 0.1):
          avg_diff_percent10 += 1.0
       avg_count += 1.0
-      snr_num += precise_vals[i][j] * precise_vals[i][j]
+      snr_num += (precise_rgb / 3.0) * (approx_rgb / 3.0)
       snr_den += diff * diff
       rmse += diff * diff
       rmse_count += 1
@@ -87,11 +92,12 @@ rmse = math.sqrt(rmse / rmse_count)
 nrmse = rmse / (255.0 - 0.0)
 # print "nrmse:                                      " + str(nrmse)
 snr = 0.0
-if snr_den == 0.0:
-   # print "signal-to-noise ratio (dB):                 " + "inf"
-   print "inf"
-else:
+
+if snr_den > 0.0:
    snr = 10 * math.log(snr_num / snr_den, 10)
    # print "signal-to-noise ratio (dB):                 " + str(snr)
    print snr
+else:   # print "signal-to-noise ratio (dB):                 " + "inf"
+   print "inf"
+
 

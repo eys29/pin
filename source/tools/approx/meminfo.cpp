@@ -31,9 +31,6 @@ FILE *info;
 int mem_instr_counter = 0;
 int is_tracing = 0;
 
-int last_instr = 100;
-
-
 
 // debug function that prints assembly instructions
 VOID print_instr(UINT32 opcode, REG reg0, REG reg1) //, UINT32 reg2)
@@ -46,11 +43,6 @@ VOID mem_instr(ADDRINT addr, UINT32 size)
 {
     if (!is_tracing) 
         return;
-    if (mem_instr_counter >= last_instr)
-    {
-        mem_instr_counter += 1;
-        return;
-    }
     uint8_t data[size];
     PIN_SafeCopy(&data, (VOID *)addr, size);
     // instr_counter | size (bytes) | address 
@@ -73,7 +65,7 @@ UINT32 w_size;
 //(addr and data size is not available for after instruction instrumentation)
 VOID mem_w_info(ADDRINT addr, UINT32 size)
 {
-    if (!is_tracing || mem_instr_counter >= last_instr)
+    if (!is_tracing)
         return;
     w_addr = addr;
     w_size = size;
@@ -102,7 +94,10 @@ VOID Instruction(INS ins, VOID *v)
 
     // Handle magic instructions
 
-    if (INS_Opcode(ins) == XED_ICLASS_XCHG && INS_OperandReg(ins, 0) == REG_EAX && INS_OperandReg(ins, 1))
+    if (INS_Opcode(ins) == XED_ICLASS_XCHG && INS_OperandReg(ins, 0) == REG_EAX && INS_OperandReg(ins, 1) == REG_EAX) 
+    {
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)encounter_magic_instr, IARG_END);
+    } else if (INS_Opcode(ins) == XED_ICLASS_XCHG && INS_OperandReg(ins, 0) == REG_ECX && INS_OperandReg(ins, 1) == REG_ECX) 
     {
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)encounter_magic_instr, IARG_END);
     }
@@ -114,7 +109,7 @@ VOID Instruction(INS ins, VOID *v)
     {
         if (INS_MemoryOperandIsRead(ins, memOp))
         {
-            INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)mem_r, IARG_MEMORYREAD_EA, IARG_MEMORYREAD_SIZE, IARG_END);
+            INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)mem_r, IARG_MEMORYREAD_EA, IARG_MEMORYREAD_SIZE, IARG_END);     
         }
         // Note that in some architectures a single memory operand can be
         // both read and written (for instance incl (%eax) on IA-32)

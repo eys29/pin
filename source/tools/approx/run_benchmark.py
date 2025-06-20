@@ -61,7 +61,7 @@ def process_meminfo_line(line):
                                         str(bit*2)],
                                         stderr=subprocess.DEVNULL,  # suppress error output
                                         timeout=30)
-                snr_out = subprocess.check_output(["python", 
+                snr_out = subprocess.check_output(["python3", 
                                                 error_script, 
                                                 f"{benchmarks[benchmark][2]}.{instr}.{bit*2}", 
                                                 start_path + benchmarks[benchmark][1]])

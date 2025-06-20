@@ -6,9 +6,9 @@ import string
 import sys
 import math
 
-print sys.argv
+print(sys.argv)
 if len(sys.argv) != 3:
-   print "args: <precise> <approx>"
+   print("args: <precise> <approx>")
    sys.exit()
 
 PRECISE_FILENAME = sys.argv[1]
@@ -47,8 +47,8 @@ snr_den = 0.0
 rmse = 0.0
 rmse_count = 0
 
-for i in xrange(0, len(precise_vals)):
-   for j in xrange(0, len(precise_vals[i])):
+for i in range(len(precise_vals)):
+   for j in range(len(precise_vals[i])):
       diff = abs(precise_vals[i][j] - approx_vals[i][j])
 
       avg_diff += diff
@@ -91,7 +91,7 @@ snr = 0.0
 if snr_den > 0.0:
    snr = 10 * math.log(snr_num / snr_den, 10)
    # print "signal-to-noise ratio (dB):                 " + str(snr)
-   print snr
+   print(snr)
 else:   # print "signal-to-noise ratio (dB):                 " + "inf"
-   print "inf"
+   print("inf")
 

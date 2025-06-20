@@ -8,7 +8,6 @@ meminfo_out = "meminfo.out"
 meminfo_info = "meminfo.info"
 executable = "../../../../../../perfect/suite/pa1/kernels/ser/2d_convolution/2d_convolution"
 error_script = "../../error_script.py"
-heatmap_out = "heatmap_multi.out"
 
 
 

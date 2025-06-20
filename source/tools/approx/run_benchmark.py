@@ -3,11 +3,34 @@ import subprocess
 import sys
 import threading
 import time
+# how to run 
+# python3 run_benchmark.py benchmarkname startinstr numinstr
 
+# benchmark name : (executable, golden output, output mat)
+start_path = "../../../../perfect/suite/"
+benchmarks = {
+    "2dconv" :  ("pa1/kernels/ser/2d_convolution/2d_convolution",   
+                 "pa1/output/2dconv_output.small.mat",
+                 "2dconv_output.small.0.mat"),
+    "dwt53" :   ("pa1/kernels/ser/dwt53/dwt53",                      
+                 "pa1/output/dwt53_output.small.mat",
+                 "dwt53_output.small.0.mat"),
+    "histeq" :  ("pa1/kernels/ser/histogram_equalization/histogram_equalization",
+                 "pa1/output/histeq_output.small.mat",
+                 "histeq_output.small.0.mat"),
+    "lk" :      ("wami/kernels/ser/lucas-kanade/wami-lucas-kanade",
+                 "wami/inout/small_golden.mat",
+                 "output.mat"),
+    "debayer" : ("wami/kernels/ser/debayer/wami-debayer",
+                 "wami/inout/small_golden_debayer_output.mat",
+                 "output.mat")
+
+}
 meminfo_out = "meminfo.out"
 meminfo_info = "meminfo.info"
-executable = "../../../../../../perfect/suite/pa1/kernels/ser/2d_convolution/2d_convolution"
-error_script = "../../error_script.py"
+benchmark = sys.argv[1]
+executable = start_path + benchmarks[benchmark][0]
+error_script = "error_script.py"
 
 
 
@@ -29,9 +52,9 @@ def process_meminfo_line(line):
         snr_arr = [] 
         for i in range(num_runs):
             try:
-                subprocess.check_output(["../../../../../pin", 
+                subprocess.check_output(["../../../pin", 
                                         "-t", 
-                                        "../../obj-intel64/bitflip.so", 
+                                        "obj-intel64/bitflip.so", 
                                         "--", 
                                         executable, 
                                         str(instr), 
@@ -40,8 +63,8 @@ def process_meminfo_line(line):
                                         timeout=30)
                 snr_out = subprocess.check_output(["python", 
                                                 error_script, 
-                                                f"2dconv_output.small.0.mat.{instr}.{bit*2}", 
-                                                "../../../../../../perfect/suite/pa1/output/2dconv_output.small.mat"])
+                                                f"{benchmarks[benchmark][2]}.{instr}.{bit*2}", 
+                                                start_path + benchmarks[benchmark][1]])
                 str_snr = str(snr_out).split("\\n")
                 # print(str_snr)
                 snr_arr.append(float(str_snr[1].strip()))
@@ -69,9 +92,9 @@ def process_meminfo_line(line):
 
 
 # Generate instructions - don't do this every run so that mem info is same across runs
-subprocess.check_output(["../../../../../pin", 
+subprocess.check_output(["../../../pin", 
                     "-t", 
-                    "../../obj-intel64/meminfo.so", 
+                    "obj-intel64/meminfo.so", 
                     "--", 
                     executable])
 print("Finished meminfo")
@@ -82,8 +105,8 @@ with open(meminfo_info, "r") as total_instrs_file:
     total_instrs = int(line)
 
 threads = []
-start_instr = int(sys.argv[1])
-last_instr = start_instr + int(sys.argv[2])
+start_instr = int(sys.argv[2])
+last_instr = start_instr + int(sys.argv[3])
 counter = 0
 with open(meminfo_out, "r") as meminfo_file:
     for line in meminfo_file:

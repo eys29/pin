@@ -25,6 +25,8 @@ benchmarks = {
 }
 
 benchmark = sys.argv[1]
+start_instr = 0
+num_instr = 0
 if len(sys.argv) == 4:
     start_instr = int(sys.argv[2])
     num_instr = int(sys.argv[3])

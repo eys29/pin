@@ -25,8 +25,9 @@ benchmarks = {
 }
 
 benchmark = sys.argv[1]
-start_instr = int(sys.argv[2])
-num_instr = int(sys.argv[3])
+if len(sys.argv) == 4:
+    start_instr = int(sys.argv[2])
+    num_instr = int(sys.argv[3])
 executable = start_path + benchmarks[benchmark][0]
 error_script = "error_script.py"
 meminfo_out = "meminfo.out"
@@ -36,7 +37,7 @@ def process_meminfo_line(line):
     parts = line.split()
     instr = int(parts[0])
     num_bytes = int(parts[1])
-    num_bits = 10  # or num_bytes * 8
+    num_bits = 32  # or num_bytes * 8
     addr = parts[2]
 
     output_string = f"{instr} {addr}"
@@ -52,14 +53,15 @@ def process_meminfo_line(line):
                                          "--", 
                                          executable, 
                                          str(instr), 
-                                         str(bit * 2)],
+                                         str(bit)],
                                          stderr=subprocess.DEVNULL,
                                          timeout=30)
                 
                 snr_out = subprocess.check_output(["python3", 
                                                    error_script, 
-                                                   f"{benchmarks[benchmark][2]}.{instr}.{bit*2}", 
+                                                   f"{benchmarks[benchmark][2]}.{instr}.{bit}", 
                                                    start_path + benchmarks[benchmark][1]])
+                subprocess.check_output(["rm", f"{benchmarks[benchmark][2]}.{instr}.{bit}"])
                 str_snr = snr_out.decode().split("\n")
                 snr_arr.append(float(str_snr[1].strip()))
             except subprocess.CalledProcessError:
@@ -89,6 +91,8 @@ if __name__ == "__main__":
                              "--", 
                              executable])
     print("Finished meminfo")
+    subprocess.check_output(["rm", f"{benchmarks[benchmark][2]}"])
+
 
     # Read instructions to process
     with open(meminfo_info, "r") as total_instrs_file:
@@ -101,7 +105,10 @@ if __name__ == "__main__":
 
     # Use multiprocessing Pool
     with Pool(processes=cpu_count()) as pool:
-        pool.map(process_meminfo_line, lines_to_process)
+        if len(sys.argv) == 4:
+            pool.map(process_meminfo_line, lines_to_process)
+        else: 
+            pool.map(process_meminfo_line, all_lines)
 
     total_time = (time.time() - start_time) / 60
     print(f"Total execution time: {total_time:.2f} minutes")

@@ -103,7 +103,7 @@ if __name__ == "__main__":
     with open(meminfo_out, "r") as meminfo_file:
         all_lines = meminfo_file.readlines()
 
-    lines_to_process = all_lines[start_instr:start_instr + num_instr]
+    lines_to_process = all_lines[start_instr:min(start_instr + num_instr, len(all_lines))]
 
     # Use multiprocessing Pool
     with Pool(processes=cpu_count()) as pool:

@@ -32,8 +32,7 @@ if len(sys.argv) == 4:
     num_instr = int(sys.argv[3])
 executable = start_path + benchmarks[benchmark][0]
 error_script = "error_script.py"
-meminfo_out = "meminfo.out"
-meminfo_info = "meminfo.info"
+meminfo_out = benchmark+"_meminfo.out"
 
 def process_meminfo_line(line):
     parts = line.split()
@@ -45,7 +44,7 @@ def process_meminfo_line(line):
     output_string = f"{instr} {addr}"
     
     for bit in range(num_bits):
-        num_runs = 10
+        num_runs = 5
         snr_arr = []
         for i in range(num_runs):
             try:
@@ -86,46 +85,8 @@ def process_meminfo_line(line):
 if __name__ == "__main__":
     start_time = time.time()
 
-    # Generate meminfo file
-    subprocess.check_output(["../../../pin", 
-                             "-t", 
-                             "obj-intel64/meminfo.so", 
-                             "--", 
-                             executable])
-    print("Finished meminfo")
-    subprocess.check_output(["rm", f"{benchmarks[benchmark][2]}"])
-
-
-    # Read instructions to process
-    with open(meminfo_info, "r") as total_instrs_file:
-        total_instrs = int(total_instrs_file.readline())
-
     with open(meminfo_out, "r") as meminfo_file:
         all_lines = meminfo_file.readlines()
-
-    before = len(all_lines)
-    print("before " + str(before))
-    seen_addresses = set()
-    filtered_lines = []
-
-    for line in all_lines:
-        parts = line.strip().split()
-        if len(parts) < 3:
-            continue
-        try:
-            address = int(parts[2])
-        except ValueError:
-            continue
-        if address not in seen_addresses:
-            seen_addresses.add(address)
-            filtered_lines.append(line)
-
-    # Optionally overwrite all_lines if you still need it
-    all_lines = filtered_lines
-    after = len(all_lines)
-    print("after " + str(after))
-    print("reduced % " + str((before-after)/before))
-    
     # Use multiprocessing Pool
     with Pool(processes=cpu_count()) as pool:
         if len(sys.argv) == 4:

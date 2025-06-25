@@ -103,8 +103,8 @@ if __name__ == "__main__":
     with open(meminfo_out, "r") as meminfo_file:
         all_lines = meminfo_file.readlines()
 
-    # before = len(all_lines)
-    # print("before " + str(before))
+    before = len(all_lines)
+    print("before " + str(before))
     seen_addresses = set()
     filtered_lines = []
 
@@ -122,9 +122,9 @@ if __name__ == "__main__":
 
     # Optionally overwrite all_lines if you still need it
     all_lines = filtered_lines
-    # after = len(all_lines)
-    # print("after " + str(after))
-    # print("reduced % " + str((before-after)/before))
+    after = len(all_lines)
+    print("after " + str(after))
+    print("reduced % " + str((before-after)/before))
     
     # Use multiprocessing Pool
     with Pool(processes=cpu_count()) as pool:

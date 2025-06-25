@@ -16,7 +16,7 @@ benchmarks = {
     "histeq":  ("pa1/kernels/ser/histogram_equalization/histogram_equalization",
                 "pa1/output/histeq_output.small.mat",
                 "histeq_output.small.0.mat"),
-    "lk":      ("wami/kernels/ser/lucas-kanade/wami-lucas-kanade",
+    "lucas":    ("wami/kernels/ser/lucas-kanade/wami-lucas-kanade",
                 "wami/inout/small_golden.mat",
                 "output.mat"),
     "debayer": ("wami/kernels/ser/debayer/wami-debayer",
@@ -103,11 +103,33 @@ if __name__ == "__main__":
     with open(meminfo_out, "r") as meminfo_file:
         all_lines = meminfo_file.readlines()
 
-    lines_to_process = all_lines[start_instr:min(start_instr + num_instr, len(all_lines))]
+    # before = len(all_lines)
+    # print("before " + str(before))
+    seen_addresses = set()
+    filtered_lines = []
 
+    for line in all_lines:
+        parts = line.strip().split()
+        if len(parts) < 3:
+            continue
+        try:
+            address = int(parts[2])
+        except ValueError:
+            continue
+        if address not in seen_addresses:
+            seen_addresses.add(address)
+            filtered_lines.append(line)
+
+    # Optionally overwrite all_lines if you still need it
+    all_lines = filtered_lines
+    # after = len(all_lines)
+    # print("after " + str(after))
+    # print("reduced % " + str((before-after)/before))
+    
     # Use multiprocessing Pool
     with Pool(processes=cpu_count()) as pool:
         if len(sys.argv) == 4:
+            lines_to_process = all_lines[start_instr:min(start_instr + num_instr, len(all_lines))]
             pool.map(process_meminfo_line, lines_to_process)
         else: 
             pool.map(process_meminfo_line, all_lines)

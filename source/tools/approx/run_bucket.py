@@ -77,7 +77,7 @@ def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size):
             snr_arr.remove("e")
         elif "t" in snr_arr:
             output_string += "t"
-            snr_arr.remove("e")
+            snr_arr.remove("t")
         
         average_snr = sum(snr_arr) / num_runs
         

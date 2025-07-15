@@ -106,8 +106,9 @@ if __name__ == "__main__":
 
     try: 
         num_loads = subprocess.check_output(["wc", "-l", meminfo_out])
+        print("# loads: \t" + str(num_loads))
         bucket_size = num_loads[0] // num_buckets 
-        print("bucket size: \t" + str(num_runs))
+        print("bucket size: \t" + str(bucket_size))
 
         # for bucket in range(num_buckets):
         #     bucket_start = bucket * bucket_size
@@ -116,8 +117,6 @@ if __name__ == "__main__":
         #     bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size)
         args_list = []
         for bucket in range(num_buckets):
-            if (bucket >= 10):
-                break
             start = bucket * bucket_size
             size = num_loads[0] - start if bucket == num_buckets - 1 else bucket_size
             args_list.append((num_bitflips, num_runs, start, size))

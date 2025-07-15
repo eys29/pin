@@ -53,7 +53,7 @@ with open(meminfo_out, "r") as meminfo_file:
     all_lines = meminfo_file.readlines()
 
 before = len(all_lines)
-print("before " + str(before))
+print("before \t" + str(before))
 seen_addresses = set()
 
 with open(benchmark + "_meminfo.out", 'w') as outfile:
@@ -70,6 +70,6 @@ with open(benchmark + "_meminfo.out", 'w') as outfile:
             outfile.write(line)
 
 # Optionally overwrite all_lines if you still need it
-after = len(all_lines)
-print("after " + str(after))
+after = len(seen_addresses)
+print("after \t" + str(after))
 print("reduced % " + str((before-after)/before))

@@ -88,7 +88,7 @@ def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size):
 
 if __name__ == "__main__":
     start_time = time.time()
-    num_buckets = 1000 
+    num_buckets = 10000
     num_bitflips = 16
     num_runs = 10
 

@@ -105,9 +105,10 @@ if __name__ == "__main__":
 
 
     try: 
-        num_loads = subprocess.check_output(["wc", "-l", meminfo_out])
+        wcout = subprocess.check_output(["wc", "-l", meminfo_out])
+        num_loads = int(wcout.split()[0])
         print("# loads: \t" + str(num_loads))
-        bucket_size = num_loads[0] // num_buckets 
+        bucket_size = num_loads // num_buckets 
         print("bucket size: \t" + str(bucket_size))
 
         # for bucket in range(num_buckets):
@@ -118,7 +119,7 @@ if __name__ == "__main__":
         args_list = []
         for bucket in range(num_buckets):
             start = bucket * bucket_size
-            size = num_loads[0] - start if bucket == num_buckets - 1 else bucket_size
+            size = num_loads - start if bucket == num_buckets - 1 else bucket_size
             args_list.append((num_bitflips, num_runs, start, size))
 
 
@@ -126,7 +127,7 @@ if __name__ == "__main__":
         with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
             pool.starmap(bucket_bitflip, args_list)
 
-    except:
+    except subprocess.CalledProcessError:
         print("can't get line count")
 
 

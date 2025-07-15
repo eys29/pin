@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
         counter++;
     }
 
-    for (int i : load_ids) cout << i << " ";
+    // for (int i : load_ids) cout << i << " ";
 
     INS_AddInstrumentFunction(Instruction, 0);
     PIN_AddFiniFunction(Fini, 0);

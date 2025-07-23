@@ -51,7 +51,6 @@ VOID mem_instr(ADDRINT addr, UINT32 size, char rw)
         UINT32 block;
         int offset;
         int random_loc;
-        srand(time(NULL));
         for (int i = 0; i < num_bitflips; i++){
             random_loc = rand() % (8);
             block = random_loc / 8; // 8 bits
@@ -149,13 +148,16 @@ int main(int argc, char *argv[])
 
 
 
-    if (argc != 11){
+    if (argc != 12){
         return Usage();
     }
+    srand(time(NULL));            
     num_bitflips = atoi(argv[7]);
     int bucket_start = atoi(argv[8]);
     int bucket_size = atoi(argv[9]);
-    char *filename = argv[10];
+    int prob = atoi(argv[10]);
+    char *filename = argv[11];
+
 
     
 
@@ -166,7 +168,10 @@ int main(int argc, char *argv[])
     {
         if (counter >= bucket_start && counter < bucket_start + bucket_size){
             auto pos = str.find(" ");
-            load_ids.push_back(stoi(str.substr(0, pos)));
+            // distribution here
+            if ((rand() % 100) < prob){
+                load_ids.push_back(stoi(str.substr(0, pos)));
+            }  
         }
         counter++;
     }

@@ -39,7 +39,7 @@ meminfo_out = benchmark+"_meminfo.out"
 
 
 
-def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size):
+def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size, prob):
 
     output_string = ""
     
@@ -55,6 +55,7 @@ def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size):
                                          str(flip),
                                          str(bucket_start), 
                                          str(bucket_size),
+                                         str(prob),
                                          meminfo_out
                                          ],
                                          stderr=subprocess.DEVNULL,
@@ -89,6 +90,7 @@ if __name__ == "__main__":
     num_buckets = 1000 
     num_bitflips = 16
     num_runs = 10
+    prob = 10
 
     print("# buckets: \t" + str(num_buckets))
     print("# bitflips: \t" + str(num_bitflips))
@@ -109,7 +111,7 @@ if __name__ == "__main__":
         num_loads = int(wcout.split()[0])
         print("# loads: \t" + str(num_loads))
         bucket_size = num_loads // num_buckets 
-        print("bucket size: \t" + str(bucket_size))
+        print("# bucket size: \t" + str(bucket_size))
 
         # for bucket in range(num_buckets):
         #     bucket_start = bucket * bucket_size
@@ -120,7 +122,7 @@ if __name__ == "__main__":
         for bucket in range(num_buckets):
             start = bucket * bucket_size
             size = num_loads - start if bucket == num_buckets - 1 else bucket_size
-            args_list.append((num_bitflips, num_runs, start, size))
+            args_list.append((num_bitflips, num_runs, start, size, prob))
 
 
         # Run in parallel

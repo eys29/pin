@@ -73,11 +73,13 @@ def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size, prob):
             except subprocess.TimeoutExpired:
                 snr_arr.append(0)
         
-        # if "e" in snr_arr:
-        #     average_snr = "e"
-        # elif "t" in snr_arr:
-        #     average_snr = "t"
-        # else:
+        if "e" in snr_arr:
+            output_string += "e"
+            snr_arr.remove("e")
+        elif "t" in snr_arr:
+            output_string += "t"
+            snr_arr.remove("t")
+        
         average_snr = sum(snr_arr) / num_runs
         
         output_string += f" {average_snr}"
@@ -87,7 +89,7 @@ def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size, prob):
 
 if __name__ == "__main__":
     start_time = time.time()
-    num_buckets = 1000 
+    num_buckets = 10000
     num_bitflips = 16
     num_runs = 10
     prob = 10

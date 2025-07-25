@@ -41,17 +41,18 @@ meminfo_out = benchmark+"_meminfo.out"
 
 def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size, prob):
 
+    wrong = 1
     output_string = ""
     
     for flip in range(num_bitflips):
-        snr_arr = []
+        metric_arr = []
         for i in range(num_runs):
             try:
                 subprocess.check_output(["../../../pin", 
                                          "-t", 
                                          "obj-intel64/bucketbitflip.so", 
                                          "--", 
-                                         executable, #random_bitflips, bucket_start, bucket_size, meminfo_filename
+                                         executable, #random_bitflips, bucket_start, bucket_size, probability, meminfo_filename
                                          str(flip),
                                          str(bucket_start), 
                                          str(bucket_size),
@@ -59,19 +60,24 @@ def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size, prob):
                                          meminfo_out
                                          ],
                                          stderr=subprocess.DEVNULL,
-                                         timeout=1)
+                                         timeout=2)
                 
-                snr_out = subprocess.check_output(["python3", 
+                metric_out = subprocess.check_output(["python3", 
                                                    error_script, 
                                                    f"{benchmarks[benchmark][2]}.{flip}.{bucket_start}", 
                                                    start_path + benchmarks[benchmark][1]])
-                subprocess.check_output(["rm", f"{benchmarks[benchmark][2]}.{flip}.{bucket_start}"])
-                str_snr = snr_out.decode().split("\n")
-                snr_arr.append(float(str_snr[1].strip()))
+                # subprocess.check_output(["rm", f"{benchmarks[benchmark][2]}.{flip}.{bucket_start}"])
+                str_metric = metric_out.decode().split("\n")
+                metric = float(str_metric[1].strip())
+                metric_arr.append(1 if metric > 1 else metric)
+                # if metric > 1:
+                #     print("WEIRD ")
+                #     print("\t" + str(str_metric))
+                #     print("\t" + str(metric))
             except subprocess.CalledProcessError:
-                snr_arr.append(0) # error is represented as 0 snr
+                metric_arr.append(wrong) # error is represented as 0 snr
             except subprocess.TimeoutExpired:
-                snr_arr.append(0) # timeout is represented as 0 snr
+                metric_arr.append(wrong) # timeout is represented as 0 snr
         
         # if "e" in snr_arr:
         #     output_string += "e"
@@ -80,23 +86,25 @@ def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size, prob):
         #     output_string += "t"
         #     snr_arr.remove("t")
         
-        average_snr = sum(snr_arr) / num_runs
+        average_metric = sum(metric_arr) / num_runs
         
-        output_string += f" {average_snr}"
+        output_string += f"{average_metric},"
     
     print(output_string, flush=True)
 
 
 if __name__ == "__main__":
     start_time = time.time()
-    num_buckets = 1000
+    num_buckets = 10000
     num_bitflips = 16
     num_runs = 10
     prob = 10
+    debug = 10 #num_buckets
 
-    print("# buckets: \t" + str(num_buckets))
-    print("# bitflips: \t" + str(num_bitflips))
-    print("# runs: \t" + str(num_runs))
+    print(benchmark)
+    print("buckets," + str(num_buckets))
+    print("bitflips," + str(num_bitflips))
+    print("runs," + str(num_runs))
 
 
     #debug
@@ -111,9 +119,9 @@ if __name__ == "__main__":
     try: 
         wcout = subprocess.check_output(["wc", "-l", meminfo_out])
         num_loads = int(wcout.split()[0])
-        print("# loads: \t" + str(num_loads))
+        print("loads," + str(num_loads))
         bucket_size = num_loads // num_buckets 
-        print("# bucket size: \t" + str(bucket_size))
+        print("bucket size," + str(bucket_size))
 
         # for bucket in range(num_buckets):
         #     bucket_start = bucket * bucket_size
@@ -121,7 +129,7 @@ if __name__ == "__main__":
         #         bucket_size = num_loads[0] - bucket_start
         #     bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size)
         args_list = []
-        for bucket in range(num_buckets):
+        for bucket in range(debug):
             start = bucket * bucket_size
             size = num_loads - start if bucket == num_buckets - 1 else bucket_size
             args_list.append((num_bitflips, num_runs, start, size, prob))

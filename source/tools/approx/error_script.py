@@ -85,13 +85,13 @@ norm_diff_percent10 = avg_diff_percent10 / avg_count
 # print "fraction pixels with diff > 10% (of 255):   " + str(norm_diff_percent10)
 rmse = math.sqrt(rmse / rmse_count)
 nrmse = rmse / (255.0 - 0.0)
-# print "nrmse:                                      " + str(nrmse)
-snr = 0.0
+print(round(nrmse,8))
+# snr = 0.0
 
-if snr_den > 0.0:
-   snr = 10 * math.log(snr_num / snr_den, 10)
-   # print "signal-to-noise ratio (dB):                 " + str(snr)
-   print(snr)
-else:   # print "signal-to-noise ratio (dB):                 " + "inf"
-   print("inf")
+# if snr_den > 0.0:
+#    snr = 10 * math.log(snr_num / snr_den, 10)
+#    # print "signal-to-noise ratio (dB):                 " + str(snr)
+#    print(snr)
+# else:   # print "signal-to-noise ratio (dB):                 " + "inf"
+#    print("inf")
 

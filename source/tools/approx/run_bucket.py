@@ -66,7 +66,7 @@ def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size, prob):
                                                    error_script, 
                                                    f"{benchmarks[benchmark][2]}.{flip}.{bucket_start}", 
                                                    start_path + benchmarks[benchmark][1]])
-                # subprocess.check_output(["rm", f"{benchmarks[benchmark][2]}.{flip}.{bucket_start}"])
+                subprocess.check_output(["rm", f"{benchmarks[benchmark][2]}.{flip}.{bucket_start}"])
                 str_metric = metric_out.decode().split("\n")
                 metric = float(str_metric[1].strip())
                 metric_arr.append(1 if metric > 1 else metric)
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     num_buckets = 10000
     num_bitflips = 16
     num_runs = 10
-    prob = 10
+    prob = 50
     debug = 10 #num_buckets
 
     print(benchmark)
@@ -129,7 +129,7 @@ if __name__ == "__main__":
         #         bucket_size = num_loads[0] - bucket_start
         #     bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size)
         args_list = []
-        for bucket in range(debug):
+        for bucket in range(num_buckets):
             start = bucket * bucket_size
             size = num_loads - start if bucket == num_buckets - 1 else bucket_size
             args_list.append((num_bitflips, num_runs, start, size, prob))

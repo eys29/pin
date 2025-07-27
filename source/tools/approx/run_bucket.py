@@ -56,7 +56,7 @@ def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size):
                                          meminfo_out
                                          ],
                                          stderr=subprocess.DEVNULL,
-                                         timeout=10)
+                                         timeout=100)
                 
                 metric_out = subprocess.check_output(["python3", 
                                                    error_script, 
@@ -127,7 +127,7 @@ if __name__ == "__main__":
         #         bucket_size = num_loads[0] - bucket_start
         #     bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size)
         args_list = []
-        for bucket in range(debug):
+        for bucket in range(num_buckets):
             start = bucket * bucket_size
             size = num_loads - start if bucket == num_buckets - 1 else bucket_size
             args_list.append((num_bitflips, num_runs, start, size))

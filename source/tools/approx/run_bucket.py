@@ -1,8 +1,6 @@
-import os
 import subprocess
 import sys
 import time
-import multiprocessing 
 
 # benchmark name : (executable, golden output, output mat)
 start_path = "../../../../perfect/suite/"
@@ -27,9 +25,6 @@ benchmarks = {
 benchmark = sys.argv[1]
 start_instr = 0
 num_instr = 0
-if len(sys.argv) == 4:
-    start_instr = int(sys.argv[2])
-    num_instr = int(sys.argv[3])
 executable = start_path + benchmarks[benchmark][0]
 error_script = "error_script.py"
 meminfo_out = benchmark+"_meminfo.out"
@@ -39,9 +34,10 @@ meminfo_out = benchmark+"_meminfo.out"
 
 
 
-def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size, prob):
+def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size):
 
-    wrong = 1
+    wrong = 1.01
+    timeout = 1.011
     output_string = ""
     
     for flip in range(num_bitflips):
@@ -52,15 +48,14 @@ def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size, prob):
                                          "-t", 
                                          "obj-intel64/bucketbitflip.so", 
                                          "--", 
-                                         executable, #random_bitflips, bucket_start, bucket_size, probability, meminfo_filename
+                                         executable, #random_bitflips, bucket_start, bucket_size, meminfo_filename
                                          str(flip),
                                          str(bucket_start), 
                                          str(bucket_size),
-                                         str(prob),
                                          meminfo_out
                                          ],
                                          stderr=subprocess.DEVNULL,
-                                         timeout=2)
+                                         timeout=5)
                 
                 metric_out = subprocess.check_output(["python3", 
                                                    error_script, 
@@ -75,9 +70,9 @@ def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size, prob):
                 #     print("\t" + str(str_metric))
                 #     print("\t" + str(metric))
             except subprocess.CalledProcessError:
-                metric_arr.append(wrong) # error is represented as 0 snr
+                metric_arr.append(wrong) # error
             except subprocess.TimeoutExpired:
-                metric_arr.append(wrong) # timeout is represented as 0 snr
+                metric_arr.append(timeout) # timeout
         
         # if "e" in snr_arr:
         #     output_string += "e"
@@ -98,10 +93,12 @@ if __name__ == "__main__":
     num_buckets = 10000
     num_bitflips = 16
     num_runs = 10
-    prob = 50
     debug = 10 #num_buckets
 
     print(benchmark)
+    lscpu = subprocess.check_output(["lscpu"])
+    print()
+    print(lscpu.decode())
     print("buckets," + str(num_buckets))
     print("bitflips," + str(num_bitflips))
     print("runs," + str(num_runs))
@@ -129,15 +126,15 @@ if __name__ == "__main__":
         #         bucket_size = num_loads[0] - bucket_start
         #     bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size)
         args_list = []
-        for bucket in range(num_buckets):
+        for bucket in range(debug):
             start = bucket * bucket_size
             size = num_loads - start if bucket == num_buckets - 1 else bucket_size
-            args_list.append((num_bitflips, num_runs, start, size, prob))
+            bucket_bitflip(num_bitflips, num_runs, start, size)
 
 
         # Run in parallel
-        with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
-            pool.starmap(bucket_bitflip, args_list)
+        # with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
+        #     pool.starmap(bucket_bitflip, args_list)
 
     except subprocess.CalledProcessError:
         print("can't get line count")

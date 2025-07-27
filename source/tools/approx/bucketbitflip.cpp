@@ -148,15 +148,15 @@ int main(int argc, char *argv[])
 
 
 
-    if (argc != 12){
+    if (argc != 11){
         return Usage();
     }
     srand(time(NULL));            
     num_bitflips = atoi(argv[7]);
     int bucket_start = atoi(argv[8]);
     int bucket_size = atoi(argv[9]);
-    int prob = atoi(argv[10]);
-    char *filename = argv[11];
+    // int prob = atoi(argv[10]);
+    char *filename = argv[10];
 
 
     
@@ -169,9 +169,9 @@ int main(int argc, char *argv[])
         if (counter >= bucket_start && counter < bucket_start + bucket_size){
             auto pos = str.find(" ");
             // distribution here
-            if ((rand() % 100) < prob){
-                load_ids.push_back(stoi(str.substr(0, pos)));
-            }  
+            // if ((rand() % 100) < prob){
+            load_ids.push_back(stoi(str.substr(0, pos)));
+            // }  
         }
         counter++;
     }

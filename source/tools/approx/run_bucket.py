@@ -1,3 +1,4 @@
+import multiprocessing
 import subprocess
 import sys
 import time
@@ -55,7 +56,7 @@ def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size):
                                          meminfo_out
                                          ],
                                          stderr=subprocess.DEVNULL,
-                                         timeout=2)
+                                         timeout=10)
                 
                 metric_out = subprocess.check_output(["python3", 
                                                    error_script, 
@@ -129,12 +130,12 @@ if __name__ == "__main__":
         for bucket in range(debug):
             start = bucket * bucket_size
             size = num_loads - start if bucket == num_buckets - 1 else bucket_size
-            bucket_bitflip(num_bitflips, num_runs, start, size)
+            args_list.append((num_bitflips, num_runs, start, size))
 
 
         # Run in parallel
-        # with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
-        #     pool.starmap(bucket_bitflip, args_list)
+        with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
+            pool.starmap(bucket_bitflip, args_list)
 
     except subprocess.CalledProcessError:
         print("can't get line count")

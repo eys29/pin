@@ -55,7 +55,7 @@ def bucket_bitflip(num_bitflips, num_runs, bucket_start, bucket_size):
                                          meminfo_out
                                          ],
                                          stderr=subprocess.DEVNULL,
-                                         timeout=5)
+                                         timeout=2)
                 
                 metric_out = subprocess.check_output(["python3", 
                                                    error_script, 

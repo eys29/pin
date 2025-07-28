@@ -112,7 +112,7 @@ if __name__ == "__main__":
         print(header)
 
         args_list = []
-        for bucket in range(debug):
+        for bucket in range(num_buckets):
             start = bucket * bucket_size
             size = num_loads - start if bucket == num_buckets - 1 else bucket_size
             args_list.append((bucket, num_bitflips, num_runs, start, size))

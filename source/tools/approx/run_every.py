@@ -15,15 +15,15 @@ benchmarks = {
     "histeq":  ("pa1/kernels/ser/histogram_equalization/histogram_equalization",
                 "pa1/output/histeq_output.small.mat",
                 "histeq_output.small.0.mat"),
-    "lucas":    ("wami/kernels/ser/lucas-kanade/wami-lucas-kanade",
-                "wami/inout/small_golden.mat",
-                "output.mat"),
     "debayer": ("wami/kernels/ser/debayer/wami-debayer",
                 "wami/inout/small_golden_debayer_output.mat",
                 "output.mat")
 }
 
 benchmark = sys.argv[1]
+if benchmark not in benchmarks:
+    print(f"Error: unknown benchmark '{benchmark}'")
+    sys.exit(1)
 start_instr = 0
 num_instr = 0
 executable = start_path + benchmarks[benchmark][0]
@@ -35,7 +35,7 @@ meminfo_out = benchmark+"_meminfo.out"
 
 
 
-def bucket_bitflip(bucket_id, num_bitflips, num_runs, bucket_start, bucket_size):
+def every_bitflip(bucket_id, num_bitflips, num_runs, instr_id):
 
     wrong = 1.01
     timeout = 1.011
@@ -51,8 +51,8 @@ def bucket_bitflip(bucket_id, num_bitflips, num_runs, bucket_start, bucket_size)
                                          "--", 
                                          executable, #random_bitflips, bucket_start, bucket_size, meminfo_filename
                                          str(flip),
-                                         str(bucket_start), 
-                                         str(bucket_size),
+                                         str(instr_id), 
+                                         str(1),
                                          meminfo_out
                                          ],
                                          stderr=subprocess.DEVNULL,
@@ -60,9 +60,9 @@ def bucket_bitflip(bucket_id, num_bitflips, num_runs, bucket_start, bucket_size)
                 
                 metric_out = subprocess.check_output(["python3", 
                                                    error_script, 
-                                                   f"{benchmarks[benchmark][2]}.{flip}.{bucket_start}", 
+                                                   f"{benchmarks[benchmark][2]}.{flip}.{instr_id}", 
                                                    start_path + benchmarks[benchmark][1]])
-                subprocess.check_output(["rm", f"{benchmarks[benchmark][2]}.{flip}.{bucket_start}"])
+                subprocess.check_output(["rm", f"{benchmarks[benchmark][2]}.{flip}.{instr_id}"])
                 str_metric = metric_out.decode().split("\n")
                 metric = float(str_metric[1].strip())
                 metric_arr.append(1 if metric > 1 else metric)
@@ -76,19 +76,18 @@ def bucket_bitflip(bucket_id, num_bitflips, num_runs, bucket_start, bucket_size)
         
         output_string += f"{average_metric},"
     
-    print(output_string, flush=True)
+    return output_string
 
 
 if __name__ == "__main__":
     start_time = time.time()
-    num_buckets = 10000
     num_bitflips = 16
     num_runs = 10
     debug = 5 #num_buckets
 
     print(benchmark)
     
-    print("buckets," + str(num_buckets))
+    print("every,")
     print("bitflips," + str(num_bitflips))
     print("runs," + str(num_runs))
 
@@ -98,29 +97,27 @@ if __name__ == "__main__":
         wcout = subprocess.check_output(["wc", "-l", meminfo_out])
         num_loads = int(wcout.split()[0])
         print("loads," + str(num_loads))
-        bucket_size = num_loads // num_buckets 
-        print("bucket_size," + str(bucket_size))
         print()
 
         lscpu = subprocess.check_output(["lscpu"])
         print(lscpu.decode())
 
         #print header
-        header = "bucket_id,"
+        header = "instr_id,"
         for i in range(num_bitflips):
             header += f"error_rate={i}/32,"
         print(header)
 
         args_list = []
-        for bucket in range(debug):
-            start = bucket * bucket_size
-            size = num_loads - start if bucket == num_buckets - 1 else bucket_size
-            args_list.append((bucket, num_bitflips, num_runs, start, size))
+        for load in range(num_loads): #debug
+            args_list.append((load, num_bitflips, num_runs, load))
 
 
         # Run in parallel
+        chunksize = max(1, len(args_list) // (multiprocessing.cpu_count() * 4))
         with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
-            pool.starmap(bucket_bitflip, args_list)
+            for line in pool.starmap(every_bitflip, args_list, chunksize=chunksize):
+                print(line, flush=True)
 
     except subprocess.CalledProcessError:
         print("can't get line count")
